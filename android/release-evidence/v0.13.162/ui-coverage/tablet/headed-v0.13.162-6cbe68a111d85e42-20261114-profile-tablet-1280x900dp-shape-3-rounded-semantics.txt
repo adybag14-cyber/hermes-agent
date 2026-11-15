@@ -1,0 +1,523 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=shape:rounded
+artifact=headed-v0.13.162-6cbe68a111d85e42-20261114-profile-tablet-1280x900dp-shape-3-rounded
+coverage_kind=rendered-card-shape
+page_id=Settings.Theme
+profile=tablet-1280x900dp
+language=en
+theme_id=shape-proof
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#000000
+theme_surface=#000000
+theme_surface_variant=#FFFFFF
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=1280
+screen_height_dp=900
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.162
+version_code=146290
+build_variant=debug
+source_digest=6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e
+candidate_apk_sha256=680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2
+instrumentation_apk_sha256=a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d
+evidence_run_id=v0.13.162-6cbe68a111d85e42-20261114
+device_serial=emulator-5582
+avd_name=Agent_Release_158_Play16K_20260926_Readme_16G
+device_boot_id=5c478aff-0fde-49df-a287-bf4b7e5c2656
+build_fingerprint=google/sdk_gphone16k_x86_64/emu64xa16k:17/CE2A.260420.051.A3/16571990:userdebug/dev-keys
+screenshot_sha256=3580e36c95838298197bbd3f8911817e283c633e5bd54e5f8b6f6d6520e1e961
+sentinel=Theme and chat layout
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+ |-Node #2 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+   Shape = 'RectangleShape'
+    |-Node #3 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+      TestTagsAsResourceId = 'true'
+       |-Node #5 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+         IsContainer = 'true'
+         Shape = 'RectangleShape'
+          |-Node #18 at (l=0.0, t=230.0, r=224.0, b=1736.0)px, Tag: 'HermesPersistentNavigation'
+          | IsContainer = 'true'
+          | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |  |-Node #19 at (l=0.0, t=340.0, r=224.0, b=1664.0)px
+          |    IsTraversalGroup = 'true'
+          |    [SelectableGroup]
+          |     |-Node #20 at (l=78.0, t=364.0, r=146.0, b=432.0)px
+          |     | ContentDescription = '[Agent logo]'
+          |     | Role = 'Image'
+          |     | Shape = 'RectangleShape'
+          |     |-Node #22 at (l=32.0, t=488.0, r=192.0, b=1664.0)px
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@d9753fa'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+          |       Actions = [ScrollBy, ScrollByOffset]
+          |        |-Node #23 at (l=32.0, t=488.0, r=192.0, b=600.0)px, Tag: 'HermesRailHermes'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #26 at (l=112.0, t=490.0, r=112.0, b=550.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #30 at (l=80.0, t=558.0, r=143.0, b=590.0)px
+          |        |  |  |-Node #31 at (l=80.0, t=558.0, r=143.0, b=590.0)px
+          |        |  |    Text = '[Agent]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #28 at (l=90.0, t=498.0, r=134.0, b=542.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #29 at (l=90.0, t=498.0, r=134.0, b=542.0)px
+          |        |  |    ContentDescription = '[Agent]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #25 at (l=58.0, t=490.0, r=166.0, b=550.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #32 at (l=32.0, t=604.0, r=192.0, b=716.0)px, Tag: 'HermesRailAccounts'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #35 at (l=112.0, t=606.0, r=112.0, b=666.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #39 at (l=62.0, t=674.0, r=161.0, b=706.0)px
+          |        |  |  |-Node #40 at (l=62.0, t=674.0, r=161.0, b=706.0)px
+          |        |  |    Text = '[Accounts]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #37 at (l=90.0, t=614.0, r=134.0, b=658.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #38 at (l=90.0, t=614.0, r=134.0, b=658.0)px
+          |        |  |    ContentDescription = '[Accounts]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #34 at (l=58.0, t=606.0, r=166.0, b=666.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #41 at (l=32.0, t=720.0, r=192.0, b=832.0)px, Tag: 'HermesRailNousPortal'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #44 at (l=112.0, t=722.0, r=112.0, b=782.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #48 at (l=79.0, t=790.0, r=145.0, b=822.0)px
+          |        |  |  |-Node #49 at (l=79.0, t=790.0, r=145.0, b=822.0)px
+          |        |  |    Text = '[Portal]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #46 at (l=90.0, t=730.0, r=134.0, b=774.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #47 at (l=90.0, t=730.0, r=134.0, b=774.0)px
+          |        |  |    ContentDescription = '[Portal]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #43 at (l=58.0, t=722.0, r=166.0, b=782.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #50 at (l=32.0, t=836.0, r=192.0, b=948.0)px, Tag: 'HermesRailDevice'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #53 at (l=112.0, t=838.0, r=112.0, b=898.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #57 at (l=76.0, t=906.0, r=148.0, b=938.0)px
+          |        |  |  |-Node #58 at (l=76.0, t=906.0, r=148.0, b=938.0)px
+          |        |  |    Text = '[Device]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #55 at (l=90.0, t=846.0, r=134.0, b=890.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #56 at (l=90.0, t=846.0, r=134.0, b=890.0)px
+          |        |  |    ContentDescription = '[Device]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #52 at (l=58.0, t=838.0, r=166.0, b=898.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #59 at (l=32.0, t=952.0, r=192.0, b=1064.0)px, Tag: 'HermesRailKanban'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #62 at (l=112.0, t=954.0, r=112.0, b=1014.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #66 at (l=72.0, t=1022.0, r=152.0, b=1054.0)px
+          |        |  |  |-Node #67 at (l=72.0, t=1022.0, r=152.0, b=1054.0)px
+          |        |  |    Text = '[Kanban]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #64 at (l=90.0, t=962.0, r=134.0, b=1006.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #65 at (l=90.0, t=962.0, r=134.0, b=1006.0)px
+          |        |  |    ContentDescription = '[Kanban]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #61 at (l=58.0, t=954.0, r=166.0, b=1014.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #68 at (l=32.0, t=1068.0, r=192.0, b=1180.0)px, Tag: 'HermesRailTerminal'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #71 at (l=112.0, t=1070.0, r=112.0, b=1130.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #75 at (l=64.0, t=1138.0, r=159.0, b=1170.0)px
+          |        |  |  |-Node #76 at (l=64.0, t=1138.0, r=159.0, b=1170.0)px
+          |        |  |    Text = '[Terminal]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #73 at (l=90.0, t=1078.0, r=134.0, b=1122.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #74 at (l=90.0, t=1078.0, r=134.0, b=1122.0)px
+          |        |  |    ContentDescription = '[Terminal]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #70 at (l=58.0, t=1070.0, r=166.0, b=1130.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #77 at (l=32.0, t=1184.0, r=192.0, b=1296.0)px, Tag: 'HermesRailSettings'
+          |          Focused = 'false'
+          |          Role = 'Tab'
+          |          Selected = 'true'
+          |          Actions = [OnClick, RequestFocus]
+          |          MergeDescendants = 'true'
+          |           |-Node #80 at (l=58.0, t=1186.0, r=166.0, b=1246.0)px
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           |-Node #84 at (l=68.0, t=1254.0, r=156.0, b=1286.0)px
+          |           |  |-Node #85 at (l=68.0, t=1254.0, r=156.0, b=1286.0)px
+          |           |    Text = '[Settings]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #82 at (l=90.0, t=1194.0, r=134.0, b=1238.0)px
+          |           | ClearAndSetSemantics = 'true'
+          |           |  |-Node #83 at (l=90.0, t=1194.0, r=134.0, b=1238.0)px
+          |           |    ContentDescription = '[Settings]'
+          |           |    Role = 'Image'
+          |           |-Node #79 at (l=58.0, t=1186.0, r=166.0, b=1246.0)px
+          |             Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |-Node #86 at (l=224.0, t=230.0, r=2560.0, b=1736.0)px
+          | IsContainer = 'true'
+          | Shape = 'RectangleShape'
+          |  |-Node #2023 at (l=224.0, t=230.0, r=2560.0, b=1736.0)px
+          |    IsContainer = 'true'
+          |    Shape = 'RectangleShape'
+          |     |-Node #2026 at (l=504.0, t=254.0, r=2280.0, b=434.0)px, Tag: 'HermesSettingsPageNavigation'
+          |     | IsContainer = 'true'
+          |     | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |     |  |-Node #2028 at (l=524.0, t=270.0, r=755.0, b=310.0)px
+          |     |  | Text = '[Settings  ›  Theme]'
+          |     |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #2031 at (l=524.0, t=322.0, r=648.0, b=418.0)px, Tag: 'HermesSettingsPage_Overview'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #2033 at (l=544.0, t=354.0, r=628.0, b=386.0)px
+          |     |  |    Text = '[General]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #2034 at (l=660.0, t=322.0, r=778.0, b=418.0)px, Tag: 'HermesSettingsPage_Models'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #2036 at (l=680.0, t=354.0, r=758.0, b=386.0)px
+          |     |  |    Text = '[Models]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #2037 at (l=790.0, t=322.0, r=906.0, b=418.0)px, Tag: 'HermesSettingsPage_Theme'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'true'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #2039 at (l=812.0, t=354.0, r=885.0, b=386.0)px
+          |     |  |    Text = '[Theme]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #2040 at (l=918.0, t=322.0, r=1034.0, b=418.0)px, Tag: 'HermesSettingsPage_Tools'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #2042 at (l=947.0, t=354.0, r=1005.0, b=386.0)px
+          |     |  |    Text = '[Tools]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #2043 at (l=1046.0, t=322.0, r=1284.0, b=418.0)px, Tag: 'HermesSettingsPage_Privacy'
+          |     |    Focused = 'false'
+          |     |    Role = 'Tab'
+          |     |    Selected = 'false'
+          |     |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |    Actions = [OnClick, RequestFocus]
+          |     |    MergeDescendants = 'true'
+          |     |     |-Node #2045 at (l=1066.0, t=354.0, r=1264.0, b=386.0)px
+          |     |       Text = '[Privacy and safety]'
+          |     |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |-Node #2046 at (l=504.0, t=458.0, r=2280.0, b=1712.0)px, Tag: 'HermesSettingsContentList'
+          |       CollectionInfo = 'CollectionInfo(rowCount=2, columnCount=1)'
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@d9753fa'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=100.0, reverseScrolling=false)'
+          |       Actions = [GetScrollViewportLength, IndexForKey, ScrollBy, ScrollByOffset, ScrollToIndex]
+          |        |-Node #2116 at (l=504.0, t=458.0, r=2280.0, b=2362.0)px, Tag: 'HermesAppearanceCard'
+          |          IsContainer = 'true'
+          |          Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |           |-Node #2118 at (l=536.0, t=490.0, r=873.0, b=538.0)px, Tag: 'HermesAppearanceCardTop'
+          |           | Text = '[Theme and chat layout]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2119 at (l=536.0, t=562.0, r=1661.0, b=594.0)px
+          |           | Text = '[Tune compact or expanded chat, keyword highlighting, app colours, and rounded or squared cards.]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2120 at (l=536.0, t=618.0, r=693.0, b=658.0)px
+          |           | Text = '[Chat display]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2123 at (l=536.0, t=690.0, r=748.0, b=770.0)px, Tag: 'ChatDisplayCompact'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | [Disabled]
+          |           | Actions = [OnClick]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2125 at (l=584.0, t=710.0, r=700.0, b=750.0)px
+          |           |    Text = '[Compact]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2126 at (l=764.0, t=690.0, r=987.0, b=770.0)px, Tag: 'ChatDisplayExpanded'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2128 at (l=812.0, t=710.0, r=939.0, b=750.0)px
+          |           |    Text = '[Expanded]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2131 at (l=536.0, t=810.0, r=920.0, b=850.0)px
+          |           | Text = '[Keyword and skill highlighting]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2132 at (l=536.0, t=858.0, r=1358.0, b=890.0)px
+          |           | Text = '[Subtle pills for commands, tools, skills, attachments, and agent actions.]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2133 at (l=2144.0, t=818.0, r=2248.0, b=882.0)px
+          |           | ContentDataType = 'AndroidContentDataType(androidAutofillType=2)'
+          |           | ContentDescription = '[Keyword and skill highlighting]'
+          |           | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@35c5d0f'
+          |           | Focused = 'false'
+          |           | Role = 'Switch'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | ToggleableState = 'On'
+          |           | Actions = [OnClick, OnFillData, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2134 at (l=2192.0, t=826.0, r=2240.0, b=874.0)px
+          |           |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           |-Node #2135 at (l=536.0, t=922.0, r=765.0, b=962.0)px, Tag: 'UiFontScaleValueLabel'
+          |           | Text = '[UI font size: 100%]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2136 at (l=516.0, t=990.0, r=2268.0, b=1078.0)px, Tag: 'UiFontScaleSlider'
+          |           | ContentDescription = '[UI font size: 100%]'
+          |           | Focused = 'false'
+          |           | ProgressBarRangeInfo = 'ProgressBarRangeInfo(current=1.0, range=0.8..1.3, steps=0)'
+          |           | StateDescription = '1.0'
+          |           | Actions = [RequestFocus, SetProgress]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2138 at (l=1218.0, t=990.0, r=1226.0, b=1078.0)px
+          |           |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           |-Node #2141 at (l=536.0, t=1106.0, r=723.0, b=1146.0)px
+          |           | Text = '[Colour presets]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2144 at (l=536.0, t=1178.0, r=819.0, b=1258.0)px, Tag: 'AppearancePreset-hermes'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2146 at (l=584.0, t=1198.0, r=771.0, b=1238.0)px
+          |           |    Text = '[Agent emerald]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2147 at (l=835.0, t=1178.0, r=1112.0, b=1258.0)px, Tag: 'AppearancePreset-legacy'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2149 at (l=883.0, t=1198.0, r=1064.0, b=1238.0)px
+          |           |    Text = '[Legacy purple]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2150 at (l=1128.0, t=1178.0, r=1341.0, b=1258.0)px, Tag: 'AppearancePreset-gold'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2152 at (l=1176.0, t=1198.0, r=1293.0, b=1238.0)px
+          |           |    Text = '[Gold noir]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2153 at (l=1357.0, t=1178.0, r=1562.0, b=1258.0)px, Tag: 'AppearancePreset-graphite'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2155 at (l=1405.0, t=1198.0, r=1514.0, b=1238.0)px
+          |           |    Text = '[Graphite]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2156 at (l=1578.0, t=1178.0, r=1847.0, b=1258.0)px, Tag: 'AppearancePreset-contrast'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2158 at (l=1626.0, t=1198.0, r=1799.0, b=1238.0)px
+          |           |    Text = '[High contrast]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2159 at (l=536.0, t=1290.0, r=2248.0, b=1418.0)px, Tag: 'AppearancePrimaryHexField'
+          |           | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |           | EditableText = '#24D6A3'
+          |           | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@2a1a888'
+          |           | Focused = 'false'
+          |           | ImeAction = 'Default'
+          |           | InputText = '#24D6A3'
+          |           | IsEditable = 'true'
+          |           | TextSelectionRange = 'TextRange(0, 0)'
+          |           | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2163 at (l=536.0, t=1306.0, r=2248.0, b=1418.0)px
+          |           |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |           |  |-Node #2168 at (l=568.0, t=1290.0, r=853.0, b=1322.0)px
+          |           |  | Text = '[Accent / user bubble hex]'
+          |           |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |  |-Node #2165 at (l=568.0, t=1338.0, r=2216.0, b=1386.0)px
+          |           |    Shape = 'RectangleShape'
+          |           |-Node #2169 at (l=536.0, t=1442.0, r=2248.0, b=1570.0)px, Tag: 'AppearanceSecondaryHexField'
+          |           | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |           | EditableText = '#F1B84B'
+          |           | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@15e6221'
+          |           | Focused = 'false'
+          |           | ImeAction = 'Default'
+          |           | InputText = '#F1B84B'
+          |           | IsEditable = 'true'
+          |           | TextSelectionRange = 'TextRange(0, 0)'
+          |           | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2173 at (l=536.0, t=1458.0, r=2248.0, b=1570.0)px
+          |           |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |           |  |-Node #2178 at (l=568.0, t=1442.0, r=821.0, b=1474.0)px
+          |           |  | Text = '[Secondary accent hex]'
+          |           |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |  |-Node #2175 at (l=568.0, t=1490.0, r=2216.0, b=1538.0)px
+          |           |    Shape = 'RectangleShape'
+          |           |-Node #2179 at (l=536.0, t=1594.0, r=2248.0, b=1722.0)px, Tag: 'AppearanceBackgroundHexField'
+          |           | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |           | EditableText = '#000000'
+          |           | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@d9c0646'
+          |           | Focused = 'false'
+          |           | ImeAction = 'Default'
+          |           | InputText = '#000000'
+          |           | IsEditable = 'true'
+          |           | TextSelectionRange = 'TextRange(0, 0)'
+          |           | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2183 at (l=536.0, t=1610.0, r=2248.0, b=1722.0)px
+          |           |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |           |  |-Node #2188 at (l=568.0, t=1594.0, r=751.0, b=1626.0)px
+          |           |  | Text = '[Background hex]'
+          |           |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |  |-Node #2185 at (l=568.0, t=1642.0, r=2216.0, b=1690.0)px
+          |           |    Shape = 'RectangleShape'
+          |           |-Node #2189 at (l=536.0, t=1746.0, r=2248.0, b=1874.0)px, Tag: 'AppearanceSurfaceHexField'
+          |           | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |           | EditableText = '#000000'
+          |           | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@57c3007'
+          |           | Focused = 'false'
+          |           | ImeAction = 'Default'
+          |           | InputText = '#000000'
+          |           | IsEditable = 'true'
+          |           | TextSelectionRange = 'TextRange(0, 0)'
+          |           | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2193 at (l=536.0, t=1762.0, r=2248.0, b=1874.0)px
+          |           |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |           |  |-Node #2198 at (l=568.0, t=1746.0, r=888.0, b=1778.0)px
+          |           |  | Text = '[Composer/card surface hex]'
+          |           |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |  |-Node #2195 at (l=568.0, t=1794.0, r=2216.0, b=1842.0)px
+          |           |    Shape = 'RectangleShape'
+          |           |-Node #2199 at (l=536.0, t=1898.0, r=2248.0, b=2026.0)px, Tag: 'AppearanceSurfaceVariantHexField'
+          |           | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |           | EditableText = '#FFFFFF'
+          |           | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@8ecc534'
+          |           | Focused = 'false'
+          |           | ImeAction = 'Default'
+          |           | InputText = '#FFFFFF'
+          |           | IsEditable = 'true'
+          |           | TextSelectionRange = 'TextRange(0, 0)'
+          |           | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2203 at (l=536.0, t=1914.0, r=2248.0, b=2026.0)px
+          |           |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |           |  |-Node #2208 at (l=568.0, t=1898.0, r=854.0, b=1930.0)px
+          |           |  | Text = '[Assistant/card panel hex]'
+          |           |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |  |-Node #2205 at (l=568.0, t=1946.0, r=2216.0, b=1994.0)px
+          |           |    Shape = 'RectangleShape'
+          |           |-Node #2209 at (l=536.0, t=2050.0, r=748.0, b=2090.0)px
+          |           | Text = '[Cards and boxes]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2212 at (l=536.0, t=2122.0, r=748.0, b=2202.0)px, Tag: 'CardShape-rounded'
+          |           | Role = 'Button'
+          |           | Selected = 'true'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | [Disabled]
+          |           | Actions = [OnClick]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2214 at (l=584.0, t=2142.0, r=700.0, b=2182.0)px
+          |           |    Text = '[Rounded]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2215 at (l=764.0, t=2122.0, r=914.0, b=2202.0)px, Tag: 'CardShape-soft'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Selected = 'false'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2217 at (l=812.0, t=2142.0, r=866.0, b=2182.0)px
+          |           |    Text = '[Soft]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2218 at (l=930.0, t=2122.0, r=1117.0, b=2202.0)px, Tag: 'CardShape-square'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Selected = 'false'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #2220 at (l=978.0, t=2142.0, r=1069.0, b=2182.0)px
+          |           |    Text = '[Square]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #2221 at (l=536.0, t=2242.0, r=2248.0, b=2322.0)px, Tag: 'SaveAppearanceButton'
+          |             Focused = 'false'
+          |             Role = 'Button'
+          |             Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |             Actions = [OnClick, RequestFocus]
+          |             MergeDescendants = 'true'
+          |              |-Node #2223 at (l=1283.0, t=2262.0, r=1502.0, b=2302.0)px
+          |                Text = '[Save appearance]'
+          |                Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |-Node #2010 at (l=0.0, t=0.0, r=2560.0, b=230.0)px
+            IsContainer = 'true'
+            Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+             |-Node #2014 at (l=24.0, t=136.0, r=84.0, b=196.0)px
+             | ContentDescription = '[Agent logo]'
+             | Role = 'Image'
+             | Shape = 'RectangleShape'
+             |-Node #2016 at (l=100.0, t=126.0, r=222.0, b=174.0)px
+             | Text = '[Settings]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #2017 at (l=100.0, t=174.0, r=551.0, b=206.0)px
+             | Text = '[Runtime provider and API configuration]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #2019 at (l=2343.0, t=142.0, r=2445.0, b=190.0)px
+             | IsContainer = 'true'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+             |  |-Node #2020 at (l=2355.0, t=150.0, r=2433.0, b=182.0)px
+             |    Text = '[ALPHA]'
+             |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #2021 at (l=2453.0, t=142.0, r=2536.0, b=190.0)px
+               IsContainer = 'true'
+               Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+                |-Node #2022 at (l=2465.0, t=150.0, r=2524.0, b=182.0)px
+                  Text = '[FORK]'
+                  Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<hermes-ui-evidence artifact="headed-v0.13.162-6cbe68a111d85e42-20261114-profile-tablet-1280x900dp-view-tasker-action" evidence-identity="framework:en:HermesTaskerPluginEditActivity" coverage-kind="framework-view-activity" page-id="HermesTaskerPluginEditActivity">
+  <metadata>
+    <entry key="profile" value="tablet-1280x900dp" />
+    <entry key="language" value="en" />
+    <entry key="theme_id" value="custom-light" />
+    <entry key="theme_primary" value="#1565C0" />
+    <entry key="theme_secondary" value="#8E24AA" />
+    <entry key="theme_background" value="#FAFBFF" />
+    <entry key="theme_surface" value="#FFFFFF" />
+    <entry key="theme_surface_variant" value="#E8EEF8" />
+    <entry key="card_shape" value="rounded" />
+    <entry key="ui_font_scale" value="1.0" />
+    <entry key="screen_width_dp" value="1280" />
+    <entry key="screen_height_dp" value="900" />
+    <entry key="system_font_scale" value="1.0" />
+    <entry key="package_id" value="com.mobilefork.hermesagent" />
+    <entry key="version_name" value="0.13.162" />
+    <entry key="version_code" value="146290" />
+    <entry key="build_variant" value="debug" />
+    <entry key="source_digest" value="6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e" />
+    <entry key="candidate_apk_sha256" value="680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2" />
+    <entry key="instrumentation_apk_sha256" value="a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d" />
+    <entry key="evidence_run_id" value="v0.13.162-6cbe68a111d85e42-20261114" />
+    <entry key="device_serial" value="emulator-5582" />
+    <entry key="avd_name" value="Agent_Release_158_Play16K_20260926_Readme_16G" />
+    <entry key="device_boot_id" value="5c478aff-0fde-49df-a287-bf4b7e5c2656" />
+    <entry key="build_fingerprint" value="google/sdk_gphone16k_x86_64/emu64xa16k:17/CE2A.260420.051.A3/16571990:userdebug/dev-keys" />
+    <entry key="screenshot_sha256" value="f2f4fa92697d97c7d20971b32e5ffd7263a49ade3cf6e524f24e50eb6daa4c0d" />
+    <sentinel value="Run Agent automation" />
+    <sentinel value="Choose a saved Agent automation for Tasker to run through the Locale plugin action." />
+  </metadata>
+  <view-hierarchy>
+    <node class="com.android.internal.policy.DecorView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][2560,1800]" background="android.graphics.drawable.GradientDrawable">
+      <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][2560,1800]" background="">
+        <node class="android.view.ViewStub" resource-id="android:id/action_mode_bar_stub" text="" hint="" content-desc="" visible="false" bounds="[0,0][0,0]" background="" />
+        <node class="android.widget.FrameLayout" resource-id="android:id/content" text="" hint="" content-desc="" visible="true" bounds="[0,0][2560,1800]" background="">
+          <node class="android.widget.ScrollView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][2560,1800]" background="android.graphics.drawable.GradientDrawable">
+            <node class="android.widget.FrameLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][2560,1800]" background="">
+              <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[520,166][2040,1005]" background="android.graphics.drawable.GradientDrawable">
+                <node class="android.widget.TextView" resource-id="" text="Run Agent automation" hint="" content-desc="" visible="true" bounds="[556,202][2004,261]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="Choose a saved Agent automation for Tasker to run through the Locale plugin action." hint="" content-desc="" visible="true" bounds="[556,261][2004,366]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="Saved automation" hint="" content-desc="" visible="true" bounds="[556,366][2004,404]" background="" />
+                <node class="android.widget.Spinner" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[556,416][2004,499]" background="android.graphics.drawable.GradientDrawable">
+                  <node class="android.widget.TextView" resource-id="android:id/text1" text="No saved Agent automations ()" hint="" content-desc="" visible="true" bounds="[556,416][2004,499]" background="" />
+                </node>
+                <node class="android.widget.TextView" resource-id="" text="Automation ID" hint="" content-desc="" visible="true" bounds="[556,499][2004,577]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="Existing Agent automation id" content-desc="" visible="true" bounds="[556,589][2004,680]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.TextView" resource-id="" text="Tasker action label" hint="" content-desc="" visible="true" bounds="[556,680][2004,758]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="Optional label shown in Tasker" content-desc="" visible="true" bounds="[556,770][2004,861]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.Button" resource-id="" text="Save" hint="" content-desc="" visible="true" bounds="[556,873][2004,969]" background="android.graphics.drawable.GradientDrawable" />
+              </node>
+            </node>
+          </node>
+        </node>
+      </node>
+    </node>
+  </view-hierarchy>
+</hermes-ui-evidence>

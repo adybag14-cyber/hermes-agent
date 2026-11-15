@@ -1,0 +1,457 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=localized-model:fr:nanbeige4.2-3b-q4-k-m
+artifact=headed-v0.13.162-6cbe68a111d85e42-20261114-localized-phone-411x914dp-lang-fr-model-nanbeige4.2-3b-q4-k-m
+coverage_kind=six-language-recommended-model
+page_id=Settings.Models.nanbeige4.2-3b-q4-k-m
+profile=phone-411x914dp
+language=fr
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.162
+version_code=146290
+build_variant=debug
+source_digest=6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e
+candidate_apk_sha256=680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2
+instrumentation_apk_sha256=a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d
+evidence_run_id=v0.13.162-6cbe68a111d85e42-20261114
+device_serial=emulator-5582
+avd_name=Agent_Release_158_Phone_20260926_Readme
+device_boot_id=5da391b5-cfe1-4cdc-9a38-84e3e83cdf74
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=b3c100ed241366980e03a6b4bd56167eacfabe03667e8a562628f9c0f950f19b
+sentinel=Nanbeige4.2 3B Q4_K_M (GGUF · TurboQuant)
+sentinel=Artefact Nanbeige4.2 3B Q4_K_M exact publié par Tdamre. Il exige et sélectionne la voie llama.cpp TurboQuant optionnelle, car Stable ne peut pas charger l’ancienne architecture nanbeige.
+sentinel=GGUF · Q4_K_M exact de Tdamre · TurboQuant requis
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #2 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   Shape = 'RectangleShape'
+    |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      TestTagsAsResourceId = 'true'
+       |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+         IsContainer = 'true'
+         Shape = 'RectangleShape'
+          |-Node #18 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          | IsContainer = 'true'
+          | Shape = 'RectangleShape'
+          |  |-Node #178 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          |    IsContainer = 'true'
+          |    Shape = 'RectangleShape'
+          |     |-Node #181 at (l=42.0, t=350.0, r=1038.0, b=724.0)px, Tag: 'HermesSettingsPageNavigation'
+          |     | IsContainer = 'true'
+          |     | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |     |  |-Node #183 at (l=68.0, t=371.0, r=406.0, b=424.0)px
+          |     |  | Text = '[Réglages  ›  Modèles]'
+          |     |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #186 at (l=68.0, t=440.0, r=226.0, b=566.0)px, Tag: 'HermesSettingsPage_Overview'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #188 at (l=94.0, t=482.0, r=200.0, b=524.0)px
+          |     |  |    Text = '[Général]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #189 at (l=242.0, t=440.0, r=410.0, b=566.0)px, Tag: 'HermesSettingsPage_Models'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'true'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #191 at (l=268.0, t=482.0, r=384.0, b=524.0)px
+          |     |  |    Text = '[Modèles]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #192 at (l=426.0, t=440.0, r=578.0, b=566.0)px, Tag: 'HermesSettingsPage_Theme'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #194 at (l=455.0, t=482.0, r=549.0, b=524.0)px
+          |     |  |    Text = '[Thème]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #195 at (l=594.0, t=440.0, r=746.0, b=566.0)px, Tag: 'HermesSettingsPage_Tools'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #197 at (l=630.0, t=482.0, r=710.0, b=524.0)px
+          |     |  |    Text = '[Outils]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #198 at (l=68.0, t=577.0, r=477.0, b=703.0)px, Tag: 'HermesSettingsPage_Privacy'
+          |     |    Focused = 'false'
+          |     |    Role = 'Tab'
+          |     |    Selected = 'false'
+          |     |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |    Actions = [OnClick, RequestFocus]
+          |     |    MergeDescendants = 'true'
+          |     |     |-Node #200 at (l=94.0, t=619.0, r=451.0, b=661.0)px
+          |     |       Text = '[Confidentialité et sécurité]'
+          |     |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |-Node #201 at (l=42.0, t=756.0, r=1038.0, b=2305.0)px, Tag: 'HermesSettingsContentList'
+          |       CollectionInfo = 'CollectionInfo(rowCount=8, columnCount=1)'
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@9d38f86'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=2470.0, maxValue=2570.0, reverseScrolling=false)'
+          |       Actions = [GetScrollViewportLength, IndexForKey, ScrollBy, ScrollByOffset, ScrollToIndex]
+          |        |-Node #1415 at (l=42.0, t=-1714.0, r=1038.0, b=6319.0)px, Tag: 'ModelPickerCard'
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |  |-Node #1417 at (l=84.0, t=-1672.0, r=435.0, b=-1609.0)px
+          |        |  | Text = '[Choisir un modèle]'
+          |        |  | [Heading]
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1418 at (l=84.0, t=-1577.0, r=996.0, b=-1418.0)px
+          |        |  | Text = '[Importez un fichier de cet appareil ou choisissez un modèle téléchargé. Aucun compte ni internet requis pour les fichiers locaux.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1419 at (l=84.0, t=-1386.0, r=996.0, b=-1260.0)px, Tag: 'HermesImportModelButton'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1421 at (l=300.0, t=-1349.0, r=781.0, b=-1296.0)px
+          |        |  |    Text = '[Importer un fichier de modèle]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1422 at (l=84.0, t=-1228.0, r=996.0, b=-1144.0)px
+          |        |  | Text = '[GGUF, LiteRT-LM (.litertlm) ou Android .task. L’application détecte le moteur automatiquement.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1423 at (l=84.0, t=-1112.0, r=996.0, b=-1028.0)px
+          |        |  | Text = '[Le mode avion hors ligne est actif ; Agent utilisera donc seulement les modèles locaux importés ou déjà téléchargés.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1425 at (l=84.0, t=-961.0, r=485.0, b=-908.0)px
+          |        |  | Text = '[Modèles sur cet appareil]'
+          |        |  | [Heading]
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1426 at (l=84.0, t=-876.0, r=996.0, b=-792.0)px
+          |        |  | Text = '[Aucun modèle. Importez un fichier ci-dessus ou ouvrez Télécharger des modèles ci-dessous.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1428 at (l=84.0, t=-760.0, r=996.0, b=-559.0)px, Tag: 'ModelDownloadCatalog'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  | StateDescription = 'Développé'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1432 at (l=147.0, t=-728.0, r=557.0, b=-675.0)px
+          |        |  |  | Text = '[Télécharger des modèles]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1433 at (l=147.0, t=-675.0, r=880.0, b=-591.0)px
+          |        |  |  | Text = '[Parcourez le catalogue. Seuls les téléchargements nécessitent internet.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1434 at (l=912.0, t=-686.0, r=933.0, b=-633.0)px
+          |        |  |    ClearAndSetSemantics = 'true'
+          |        |  |-Node #1436 at (l=84.0, t=-538.0, r=996.0, b=-379.0)px, Tag: 'ModelDownloadOptions'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  | StateDescription = 'Réduit'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1440 at (l=147.0, t=-506.0, r=587.0, b=-453.0)px
+          |        |  |  | Text = '[Options de téléchargement]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1441 at (l=147.0, t=-453.0, r=873.0, b=-411.0)px
+          |        |  |  | Text = '[Préférence Wi-Fi et jeton Hugging Face facultatif.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1442 at (l=912.0, t=-485.0, r=933.0, b=-432.0)px
+          |        |  |    ClearAndSetSemantics = 'true'
+          |        |  |-Node #1444 at (l=84.0, t=-334.0, r=538.0, b=-281.0)px
+          |        |  | Text = '[Modèles locaux en un geste]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1445 at (l=84.0, t=-260.0, r=996.0, b=-134.0)px
+          |        |  | Text = '[Choisissez un modèle mobile validé. Agent le télécharge, le marque comme préféré et démarre le runtime local dès que le fichier est prêt.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1446 at (l=84.0, t=-113.0, r=996.0, b=707.0)px
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |  |-Node #1448 at (l=121.0, t=-76.0, r=634.0, b=-23.0)px
+          |        |  |  | Text = '[Catalogue de modèles détectés]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1449 at (l=121.0, t=-2.0, r=959.0, b=124.0)px
+          |        |  |  | Text = '[Choisissez un modèle dans le catalogue Cloudflare signé. Agent vérifie la signature puis télécharge le fichier choisi depuis Hugging Face.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1451 at (l=121.0, t=156.0, r=959.0, b=261.0)px
+          |        |  |  | Role = 'Button'
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |  | [Disabled]
+          |        |  |  | Actions = [OnClick]
+          |        |  |  | MergeDescendants = 'true'
+          |        |  |  |  |-Node #1453 at (l=327.0, t=182.0, r=754.0, b=235.0)px
+          |        |  |  |    Text = '[Choisir un modèle détecté]'
+          |        |  |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1456 at (l=121.0, t=303.0, r=620.0, b=408.0)px
+          |        |  |  | Role = 'Button'
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |  | [Disabled]
+          |        |  |  | Actions = [OnClick]
+          |        |  |  | MergeDescendants = 'true'
+          |        |  |  |  |-Node #1458 at (l=184.0, t=329.0, r=557.0, b=382.0)px
+          |        |  |  |    Text = '[Actualiser le catalogue]'
+          |        |  |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1459 at (l=121.0, t=450.0, r=640.0, b=555.0)px
+          |        |  |  | Role = 'Button'
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |  | [Disabled]
+          |        |  |  | Actions = [OnClick]
+          |        |  |  | MergeDescendants = 'true'
+          |        |  |  |  |-Node #1461 at (l=184.0, t=476.0, r=577.0, b=529.0)px
+          |        |  |  |    Text = '[Télécharger et démarrer]'
+          |        |  |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1462 at (l=121.0, t=586.0, r=959.0, b=670.0)px
+          |        |  |    Text = '[Touchez Actualiser le catalogue pour charger les modèles signés au besoin.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1463 at (l=84.0, t=728.0, r=996.0, b=1485.0)px, Tag: 'RecommendedLocalModelCard-qwen35-08b-q4km-gguf'
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |  |-Node #1465 at (l=121.0, t=765.0, r=620.0, b=818.0)px
+          |        |  |  | Text = '[Qwen3.5 0.8B Q4_K_M (GGUF)]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1466 at (l=121.0, t=839.0, r=959.0, b=965.0)px
+          |        |  |  | Text = '[Petit modèle GGUF Unsloth pour des réponses visibles rapides, la création/suppression de fichiers et la validation des appels d’outils natifs sur téléphone.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1467 at (l=121.0, t=986.0, r=959.0, b=1196.0)px
+          |        |  |  | Text = '[unsloth/Qwen3.5-0.8B-GGUF · Qwen3.5-0.8B-Q4_K_M.gguf
+Revision 6ab461498e2023f6e3c1baea90a8f0fe38ab64d0
+532517120 bytes · SHA-256 bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1468 at (l=121.0, t=1217.0, r=959.0, b=1301.0)px
+          |        |  |  | Text = '[GGUF · Appels d’outils sur téléphone avec Unsloth Q4_K_M]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1469 at (l=121.0, t=1333.0, r=959.0, b=1438.0)px
+          |        |  |    Role = 'Button'
+          |        |  |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |    [Disabled]
+          |        |  |    Actions = [OnClick]
+          |        |  |    MergeDescendants = 'true'
+          |        |  |     |-Node #1471 at (l=344.0, t=1359.0, r=737.0, b=1412.0)px
+          |        |  |       Text = '[Télécharger et démarrer]'
+          |        |  |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1472 at (l=84.0, t=1506.0, r=996.0, b=2305.0)px, Tag: 'RecommendedLocalModelCard-nanbeige4.2-3b-q4-k-m'
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |  |-Node #1474 at (l=121.0, t=1543.0, r=872.0, b=1596.0)px
+          |        |  |  | Text = '[Nanbeige4.2 3B Q4_K_M (GGUF · TurboQuant)]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1475 at (l=121.0, t=1617.0, r=959.0, b=1785.0)px
+          |        |  |  | Text = '[Artefact Nanbeige4.2 3B Q4_K_M exact publié par Tdamre. Il exige et sélectionne la voie llama.cpp TurboQuant optionnelle, car Stable ne peut pas charger l’ancienne architecture nanbeige.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1476 at (l=121.0, t=1806.0, r=959.0, b=2058.0)px
+          |        |  |  | Text = '[Tdamre/Nanbeige4.2-3B-GGUF · Nanbeige4.2-3B-Q4_K_M.gguf
+Revision 128d8e87d69f9c1a30c37e40530c69deda96475d
+2574807840 bytes · SHA-256 99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1477 at (l=121.0, t=2079.0, r=925.0, b=2121.0)px
+          |        |  |  | Text = '[GGUF · Q4_K_M exact de Tdamre · TurboQuant requis]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1478 at (l=121.0, t=2153.0, r=959.0, b=2258.0)px
+          |        |  |    Role = 'Button'
+          |        |  |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |    [Disabled]
+          |        |  |    Actions = [OnClick]
+          |        |  |    MergeDescendants = 'true'
+          |        |  |     |-Node #1480 at (l=344.0, t=2179.0, r=737.0, b=2232.0)px
+          |        |  |       Text = '[Télécharger et démarrer]'
+          |        |  |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1481 at (l=84.0, t=2326.0, r=996.0, b=3125.0)px, Tag: 'RecommendedLocalModelCard-minicpm5-1b-fable5-q4km-gguf'
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |  |-Node #1483 at (l=121.0, t=2363.0, r=949.0, b=2416.0)px
+          |        |  |  | Text = '[MiniCPM5 1B Claude Opus Fable5 Q4_K_M (GGUF)]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1484 at (l=121.0, t=2437.0, r=959.0, b=2563.0)px
+          |        |  |  | Text = '[Modèle de raisonnement MiniCPM5 compact pour le moteur llama.cpp intégré, choisi en Q4_K_M pour une utilisation réaliste de la mémoire du téléphone.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1485 at (l=121.0, t=2584.0, r=959.0, b=2836.0)px
+          |        |  |  | Text = '[GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF · MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf
+Revision 5a4ed2c3605634e7b043e8b98fa01e504b0dfbed
+688066496 bytes · SHA-256 b1c3bf2995e96cb792a0031e4e1497a500e9244c68ba17c24a7e6edf1fc59019]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1486 at (l=121.0, t=2857.0, r=959.0, b=2941.0)px
+          |        |  |  | Text = '[GGUF · Cible de compatibilité MiniCPM5 avec llama.cpp]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1487 at (l=121.0, t=2973.0, r=959.0, b=3078.0)px
+          |        |  |    Role = 'Button'
+          |        |  |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |    [Disabled]
+          |        |  |    Actions = [OnClick]
+          |        |  |    MergeDescendants = 'true'
+          |        |  |     |-Node #1489 at (l=344.0, t=2999.0, r=737.0, b=3052.0)px
+          |        |  |       Text = '[Télécharger et démarrer]'
+          |        |  |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1490 at (l=84.0, t=3146.0, r=996.0, b=4344.0)px, Tag: 'RecommendedLocalModelCard-minicpm5-1b-web-litert-lm'
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |  |-Node #1492 at (l=121.0, t=3183.0, r=660.0, b=3236.0)px
+          |        |  |  | Text = '[MiniCPM5 1B mobile (LiteRT-LM)]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1493 at (l=121.0, t=3257.0, r=959.0, b=3383.0)px
+          |        |  |  | Text = '[Artefact MiniCPM5 LiteRT-LM adapté au mobile, avec un cache web plus court et un modèle de discussion sûr pour Android.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1494 at (l=121.0, t=3404.0, r=959.0, b=3614.0)px
+          |        |  |  | Text = '[Tdamre/MiniCPM5-1B-litert-lm · MiniCPM5-1B-web.litertlm
+Revision 06e61f79c625f864391fbb33049b5b46d1bfd7a6
+1103486896 bytes · SHA-256 a6d6d61fdfa0e04458fea344791d15ca304b54a40573e1b44ebab30c54d7bf1d]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1495 at (l=121.0, t=3635.0, r=959.0, b=3719.0)px
+          |        |  |  | Text = '[LiteRT-LM · Cible de compatibilité MiniCPM5 mobile avec LiteRT-LM]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1496 at (l=121.0, t=3751.0, r=959.0, b=3856.0)px
+          |        |  |  | Role = 'Button'
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |  | [Disabled]
+          |        |  |  | Actions = [OnClick]
+          |        |  |  | MergeDescendants = 'true'
+          |        |  |  |  |-Node #1498 at (l=344.0, t=3777.0, r=737.0, b=3830.0)px
+          |        |  |  |    Text = '[Télécharger et démarrer]'
+          |        |  |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1499 at (l=121.0, t=3898.0, r=959.0, b=4003.0)px, Tag: 'ModelScopeMirror-minicpm5-1b-web-litert-lm'
+          |        |  |  | Role = 'Button'
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |  | [Disabled]
+          |        |  |  | Actions = [OnClick]
+          |        |  |  | MergeDescendants = 'true'
+          |        |  |  |  |-Node #1501 at (l=310.0, t=3924.0, r=771.0, b=3977.0)px
+          |        |  |  |    Text = '[Télécharger via ModelScope]'
+          |        |  |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1502 at (l=121.0, t=4034.0, r=959.0, b=4160.0)px, Tag: 'ModelScopeNote-minicpm5-1b-web-litert-lm'
+          |        |  |  | Text = '[Miroir public contenant les mêmes données vérifiées, sans jeton. La disponibilité varie ; un téléchargement interrompu peut recommencer.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1503 at (l=121.0, t=4192.0, r=757.0, b=4297.0)px, Tag: 'ModelScopeLicences-minicpm5-1b-web-litert-lm'
+          |        |  |    Focused = 'false'
+          |        |  |    Role = 'Button'
+          |        |  |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |    Actions = [OnClick, RequestFocus]
+          |        |  |    MergeDescendants = 'true'
+          |        |  |     |-Node #1505 at (l=153.0, t=4218.0, r=725.0, b=4271.0)px
+          |        |  |       Text = '[Détails et licences sur ModelScope]'
+          |        |  |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1506 at (l=84.0, t=4365.0, r=996.0, b=5794.0)px, Tag: 'RecommendedLocalModelCard-vibethinker-3b-litert-lm'
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |  |-Node #1508 at (l=121.0, t=4402.0, r=568.0, b=4455.0)px
+          |        |  |  | Text = '[VibeThinker 3B (LiteRT-LM)]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1509 at (l=121.0, t=4476.0, r=959.0, b=4644.0)px
+          |        |  |  | Text = '[Modèle de raisonnement de trois milliards de paramètres converti pour le moteur LiteRT-LM natif, destiné aux téléphones et émulateurs disposant de beaucoup de RAM.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1510 at (l=121.0, t=4665.0, r=959.0, b=4875.0)px
+          |        |  |  | Text = '[Tdamre/VibeThinker-3B-litert-lm · VibeThinker-3B.litertlm
+Revision 9378fddbdce35a6ff818e0f08aa05dce6f1032aa
+3446780848 bytes · SHA-256 4cd4a856ab9fb890223d927efd4ed37268ecd1fa78559a9d27bf21daa6b8c22f]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1511 at (l=121.0, t=4896.0, r=959.0, b=4980.0)px
+          |        |  |  | Text = '[LiteRT-LM · Cible de compatibilité VibeThinker avec LiteRT-LM]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1512 at (l=121.0, t=5012.0, r=959.0, b=5117.0)px
+          |        |  |  | Role = 'Button'
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |  | [Disabled]
+          |        |  |  | Actions = [OnClick]
+          |        |  |  | MergeDescendants = 'true'
+          |        |  |  |  |-Node #1514 at (l=344.0, t=5038.0, r=737.0, b=5091.0)px
+          |        |  |  |    Text = '[Télécharger et démarrer]'
+          |        |  |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1515 at (l=121.0, t=5159.0, r=959.0, b=5264.0)px, Tag: 'ModelScopeMirror-vibethinker-3b-litert-lm'
+          |        |  |  | Role = 'Button'
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |  | [Disabled]
+          |        |  |  | Actions = [OnClick]
+          |        |  |  | MergeDescendants = 'true'
+          |        |  |  |  |-Node #1517 at (l=310.0, t=5185.0, r=771.0, b=5238.0)px
+          |        |  |  |    Text = '[Télécharger via ModelScope]'
+          |        |  |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1518 at (l=121.0, t=5295.0, r=959.0, b=5421.0)px, Tag: 'ModelScopeNote-vibethinker-3b-litert-lm'
+          |        |  |  | Text = '[Miroir public contenant les mêmes données vérifiées, sans jeton. La disponibilité varie ; un téléchargement interrompu peut recommencer.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1519 at (l=121.0, t=5442.0, r=959.0, b=5610.0)px, Tag: 'ModelScopeResearch-vibethinker-3b-litert-lm'
+          |        |  |  | Text = '[Recherche/évaluation uniquement, sauf licence distincte. La mention MIT de VibeThinker ne prouve pas une dérogation aux conditions de recherche de Qwen. Consultez les licences du miroir.]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #1520 at (l=121.0, t=5642.0, r=757.0, b=5747.0)px, Tag: 'ModelScopeLicences-vibethinker-3b-litert-lm'
+          |        |  |    Focused = 'false'
+          |        |  |    Role = 'Button'
+          |        |  |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |    Actions = [OnClick, RequestFocus]
+          |        |  |    MergeDescendants = 'true'
+          |        |  |     |-Node #1522 at (l=153.0, t=5668.0, r=725.0, b=5721.0)px
+          |        |  |       Text = '[Détails et licences sur ModelScope]'
+          |        |  |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1523 at (l=84.0, t=5815.0, r=996.0, b=6277.0)px
+          |        |    Text = '[Saisissez n’importe quel dépôt Hugging Face, un dépôt hf://, l’URL de la page du dépôt, une URL resolve ou une URL directe de fichier. Agent essaie de privilégier un fichier natif pour le runtime lorsqu’il peut l’inférer ; si le dépôt n’expose pas clairement un artefact GGUF / LiteRT-LM, Agent se rabat sur un autre artefact ressemblant à un modèle et laisse le backend choisi décider s’il peut le charger. Si vous voulez forcer un fichier précis, renseignez le chemin du fichier dans le dépôt. Exemples : GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF` ; LiteRT-LM `litert-community/Phi-4-mini-instruct`.]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1524 at (l=42.0, t=756.0, r=1038.0, b=1359.0)px, Tag: 'AgentDiagnosticsCard'
+          |          IsContainer = 'true'
+          |          Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |           |-Node #1527 at (l=42.0, t=756.0, r=476.0, b=819.0)px
+          |           | Text = '[Diagnostic et journaux]'
+          |           | [Heading]
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1528 at (l=42.0, t=756.0, r=954.0, b=882.0)px
+          |           | Text = '[Enregistrez le diagnostic de l’app, d’Android, de la mémoire et du démarrage du modèle dans le dossier choisi. Aucun modèle actif ni plantage requis.]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1529 at (l=42.0, t=756.0, r=954.0, b=882.0)px
+          |           | Text = '[Les secrets connus sont masqués, mais les noms de modèles et détails d’erreurs peuvent rester. Vérifiez le fichier avant partage. Aucun envoi automatique.]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1531 at (l=42.0, t=756.0, r=954.0, b=861.0)px, Tag: 'ExportDiagnosticLog'
+          |             Focused = 'false'
+          |             Role = 'Button'
+          |             Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |             Actions = [OnClick, RequestFocus]
+          |             MergeDescendants = 'true'
+          |              |-Node #1533 at (l=42.0, t=756.0, r=568.0, b=809.0)px
+          |                Text = '[Exporter le journal de diagnostic]'
+          |                Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |-Node #160 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+            IsContainer = 'true'
+            Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+             |-Node #164 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+             | ContentDescription = '[Ouvrir le menu de navigation]'
+             | Focused = 'false'
+             | Role = 'Button'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+             | Actions = [OnClick, RequestFocus]
+             | MergeDescendants = 'true'
+             |  |-Node #166 at (l=72.0, t=205.0, r=119.0, b=210.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #167 at (l=72.0, t=221.0, r=119.0, b=226.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #168 at (l=72.0, t=237.0, r=119.0, b=242.0)px
+             |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |-Node #169 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+             | ContentDescription = '[Logo Agent]'
+             | Role = 'Image'
+             | Shape = 'RectangleShape'
+             |-Node #171 at (l=279.0, t=171.0, r=460.0, b=234.0)px
+             | Text = '[Réglages]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #172 at (l=279.0, t=234.0, r=793.0, b=276.0)px
+             | Text = '[Fournisseur de runtime et configuration API]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #174 at (l=814.0, t=191.0, r=944.0, b=255.0)px
+             | IsContainer = 'true'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+             |  |-Node #175 at (l=830.0, t=202.0, r=928.0, b=244.0)px
+             |    Text = '[ALPHA]'
+             |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #176 at (l=955.0, t=191.0, r=1048.0, b=255.0)px
+               IsContainer = 'true'
+               Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+                |-Node #177 at (l=971.0, t=202.0, r=1032.0, b=244.0)px
+                  Text = '[Fork]'
+                  Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
