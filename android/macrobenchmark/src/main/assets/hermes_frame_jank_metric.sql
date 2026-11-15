@@ -41,6 +41,8 @@ WITH hermes_frames AS (
                     'Dropped Frame',
                     'Buffer Stuffing',
                     'SurfaceFlinger Stuffing',
+                    -- Perfetto labels non-animating/display-off frames this way.
+                    'Non-perceivable Jank',
                     'No Jank'
                 )
                 THEN 0 ELSE 1

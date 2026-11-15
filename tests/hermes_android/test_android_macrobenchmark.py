@@ -57,6 +57,9 @@ def test_frame_metric_deduplicates_target_frames_and_reconciles_jank_categories(
             (1, 106, 20000000, 'SurfaceFlinger Stuffing', 'SurfaceFlinger Stuffing'),
             (1, 107, 20000000, 'Unexpected', 'Future Tag'),
             (1, 109, 20000000, 'Unknown Jank', 'Self Jank'),
+            (1, 110, 20000000, 'Non Animating', 'Non-perceivable Jank'),
+            (1, 111, 20000000, 'Display Not On', 'Non-perceivable Jank'),
+            (1, 112, 20000000, 'Display Power Mode Change In Progress', 'Non-perceivable Jank'),
             (1, 108, 0, 'App Deadline Missed', 'Self Jank'),
             (1, 0, 20000000, 'App Deadline Missed', 'Self Jank'),
             (1, NULL, 20000000, 'App Deadline Missed', 'Self Jank'),
@@ -90,7 +93,7 @@ def test_frame_metric_deduplicates_target_frames_and_reconciles_jank_categories(
         dropped,
         unknown,
     ) == (
-        8,
+        11,
         2,
         1,
         2,
